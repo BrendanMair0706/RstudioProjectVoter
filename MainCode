@@ -1,3 +1,108 @@
+#PART 1 Voting Turnout
+setwd("C:/Users/brend/Dropbox/Eco.Poli  5/STATA DATA FOLDER/Final Exam")
+bmair <-read.csv("bmair_clean_individual.csv")
+library("tidyverse")
+library (tidyverse)
+library(haven)
+library(stargazer)
+
+#Part 2
+turnout_basedata <-read.csv("turnout_basedata.csv")
+frac_voted<-mean(bmair$voted_=="1") 
+#0.3388
+#Will get the fraction of individuals who voted "Yes"
+
+hist(turnout_basedata$turnout, xlab="Turnout To Vote",
+     ylab="Frequency of Localities",
+     main="Fraction of Voter Turnout Across Localities",
+    xlim=c(0.2,.8),ylim=c(0,40),
+    col="dark grey")
+lines(c(0.3388,0.3388),c(0,37),
+lty=2, col="purple")
+text(locator(), label=c("Mean Turnout in my Locality, 0.3388"))
+#Generates a histogram for turnout and labeled line)
+
+#Part 3
+ggplot(data = bmair) +
+  geom_boxplot(mapping = aes(x = social_pressure_continuous, y = voted))+
+  xlab("Social Pressure Index")+ylab("Individual's Voting Status")+
+  ggtitle("Boxplot of Impact of Social Pressure on a Voter")
+#Create a Barplot to compare voted and impact of Social Pressure
+
+#Part3.1
+bmair_age <- bmair %>%
+  group_by(age)  %>%
+  summarize(mean_SocialP=mean(social_pressure_continuous,na.rm=T))
+#subset of the ages and social pressure means
+
+ggplot(data = bmair_age) +
+  geom_point(mapping = aes(x = age, y = mean_SocialP)) +
+  xlab("Age of Individuals") + ylab("Mean Social Pressure Index") +
+  ggtitle( "Relationship of Mean Social Pressure among Ages of Individuals")
+#Creates a scatter plot of age and mean of social pressure
+
+#Part3.2
+lage_voted2<-lm(voted_~age, data=bmair)
+# generated regression for age and voted_ 
+summary(lage_voted2)
+#summarized regression lage_voted
+summary(bmair$age)
+#Q1= 41.00 Q3=59
+0.0932695+ 0.0049363*ln(41.00)
+#0.1116008, to get the Q1 with equatiom
+0.0932695+ 0.0049363*ln(59.00)
+# 0.1133974, to get the Q3 with equation
+
+
+#Part4.1
+mean(bmair$age[bmair$treatment_==1],na.rm = T)
+#49.47102
+# Mean of age for when the variable treatment_ ==1
+mean(bmair$age[bmair$treatment_==0],na.rm = T)
+#50.02436
+# Mean of age for when the variable treatment_ ==0
+
+mean(bmair$hh_size[bmair$treatment_==1],na.rm = T)
+#2.15783
+#T Mean of household size for when the variable treatment_ ==1
+mean(bmair$hh_size[bmair$treatment_==0],na.rm = T)
+# 2.16687
+# Mean of Household size for when the variable treatment_ ==0
+
+#Part 5
+lm_experiment<-lm(voted_ ~ treatment_ , data=bmair)
+#regression for voted_ and treatment_
+summary(lm_experiment)
+#summarized regression lm_experiment
+
+
+#Part 6
+median(bmair$age, na.rm=T)
+#49
+#To get the Median age of my dataset
+
+bmair$Age_Median<-ifelse(bmair$age<49,1,0 )
+#create binary varible, if younger then 49 1, if older/equal 0
+
+lm_younger<-lm(voted_ ~ treatment_, data=subset(bmair,Age_Median==1))
+##Regression for voted and treatment when Age_Median==0, or older/equal than 49
+summary (lm_younger)
+#summarized regression lm_younger
+
+lm_older<-lm(voted_ ~ treatment_, data=subset(bmair,Age_Median==0))
+##Regression for voted and treatment when Age_Median==0, or older/equal than 49
+summary (lm_older)
+#summarized regression lm_older
+
+stargazer(lm_younger, lm_older,
+          title="Effect of Treatment on Individual Age Groups",
+          align=TRUE,
+          dep.var.labels=c("Voter Turnout"),
+          column.labels=c("Younger","Older"),
+          covariate.labels=c("Treatment", "Constant"),
+          type="html",
+          out="regtable.html")
+#Use Stargazer to make regression table under lm_younger and lm_older
 
 #PART 2 Congress Polarization
 #set working directory 
