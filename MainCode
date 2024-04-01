@@ -1,0 +1,317 @@
+
+#PART 2 Congress Polarization
+#set working directory 
+setwd("C:/Users/brend/Dropbox/Poli_100_Quant/Project")
+#library packages used
+library("stargazer")
+library ("tidyverse")
+install.packages("kableExtra")
+library("vtable")
+library("kableExtra")
+
+#opening file
+house <- read.csv("CELHouse93to117Classic-1.csv")
+
+#summary of house
+sumhouse <- sumtable(house)
+
+#sum of house by party
+sumparty <-sumtable(full_house_party)
+view(full_house_party)
+
+full_house_party0 %>%
+  kbl(caption = "Table of Congress By Party")  %>%
+  kable_classic(full_width = F, html_font = "Cambria", font_size = 9)
+
+#sum of house by congress with created variable
+sumdist <- sumtable(final_house)
+
+final_house %>%
+  kbl(caption = "Table of House with Polarization")  %>%
+  kable_classic(full_width = F, html_font = "Cambria", font_size = 10)
+  
+#Create dataset grouping by congress number
+full_house <-
+  house %>%
+  group_by(Congress.number) %>%
+  summarise(median_les = median(LES),
+            average_dwnom1 = mean(dwnom1, na.rm = TRUE),
+            average_bills = mean(sub_sig_bills_sposnored, na.rm = TRUE),
+            average_party_dist = mean(dist_party_median, na.rm = TRUE),
+            average_floor_dist = mean(dist_floor_median, na.rm = TRUE))
+
+#Create dataset grouping specific variables based by party by congress number      
+full_house_party <-
+  house %>%
+  group_by(Congress.number, X100.Dem..200.Rep..Other)%>%
+  filter(X100.Dem..200.Rep..Other %in% c("100","200"))  %>%
+  summarise(median_les = median(LES),
+            median_dwnom1 = median(dwnom1, na.rm = TRUE),
+            average_bills = mean(sub_sig_bills_sposnored, na.rm = TRUE),
+            average_party_dist = mean(dist_party_median, na.rm = TRUE),
+            average_floor_dist = mean(dist_floor_median, na.rm = TRUE))
+
+
+
+#create variable for differnece between floor distnace of dems and republics
+full_house_party1 <-
+  full_house_party %>%
+  mutate(floor_diff = average_floor_dist - lag(average_floor_dist, default = first(average_floor_dist)))
+
+#create the variable above as absolute value 
+full_house_party1$abs_floor_dist <- abs(full_house_party1$floor_diff)
+
+#create dataset with no "0" in abs value floor distance
+full_house_party0 <-
+  filter(full_house_party1,abs_floor_dist > 0 )
+
+#Create final dataset that adds the abs_floor_dist to the full_house datset making it called "final_house"
+#reasoning beind this: first we have the variable of how far the median democrat and republican legislator is from the floor. 
+#Then I want to subtract these values to tell how far the median republic and democrat  are from one another, then to apply this each congress 
+final_house <-
+  cbind(full_house, abs_floor_dist = full_house_party0$abs_floor_dist)
+
+
+#GRAPHS
+#graph1
+ggplot(final_house, aes(
+    x=abs_floor_dist
+  , y=median_les)) + 
+  geom_point() +
+  labs(title = "Party Idealogical Distance on LES"
+       , x = "Party Idealolgical Polarization"
+       , y = "Legislature Effectiviness Score"
+       , subtitle = "Idealolgical distance of Congress from Floor of the Two-Parties impact on LES") +
+  geom_smooth(method = 'lm',se=F)
+
+#graph2
+ggplot(final_house, aes(
+    x=Congress.number
+  , y=abs_floor_dist)) + 
+  geom_point() +
+  xlim(93,117) +
+  ylim(.0,.6) +
+  labs(title = "Party Idealogical Distance Throughout Time"
+       , x = "Congress Number"
+       , y = "Party Idealolgical Distance"
+       , subtitle = "Idealolgical Distance of Congress from Floor of the Two-Parties From Congress 93 to 117") +
+  geom_smooth(method = 'lm',se=F)
+
+#graph3
+ggplot(final_house, aes(
+    x=abs_floor_dist
+  , y=average_bills)) + 
+  geom_point() +
+  labs(title = "Party Idealogical Distance On Meaningful Bills Sponsored"
+       , x = "Party Idealolgical Distance"
+       , y = "Average Substantive Bills Sponsored"
+       , subtitle = "Idealolgical Distance of Congress from Floor of the Two-Parties On Substantive Bills Sponsored") +
+  geom_smooth(method = 'lm',se=F)
+
+
+#graph4
+party_graph <- ggplot(full_house_party, aes(
+    x=Congress.number
+  , y=median_dwnom1
+  , colour=ifelse(X100.Dem..200.Rep..Other==200,"blue","red"))) + 
+  geom_point() +
+  xlim(93,117) +
+  ylim(-.55,.55) +
+  labs(title = "Parties First Dimensional Scores Across Time"
+       , x = "Congress Number"
+       , y = "First Dimensional Score"
+       , subtitle = "The Two-Parties First Dimensional Scores From Congress 93 to 117") +
+  geom_smooth(method = 'lm',se=F)
+
+party_graph + theme(legend.position = "none")
+
+#graph 5
+ggplot(final_house, aes(
+  x=median_les
+  , y=average_bills)) + 
+  geom_point() +
+  labs(title = "Median LES On Meaningful Bills Sponsored"
+       , x = "Median LES"
+       , y = "Average Substantive Bills Sponsored"
+       , subtitle = "Median LES of House of the Two-Parties On Substantive Bills Sponsored") +
+  geom_smooth(method = 'lm',se=F)
+
+party_graph + theme(legend.position = "none")
+
+#Last Graph
+time_graph <- ggplot(full_house_party, aes(
+  x=Congress.number
+  , y=median_les
+  , colour=ifelse(X100.Dem..200.Rep..Other==200,"blue","red"))) + 
+  geom_point() +
+  xlim(93,117) +
+  ylim(0,.55) +
+  labs(title = "Legislature Effectiviness Score Over Time "
+       , x = "Congress Number"
+       , y = "Legislature Effectiviness Score "
+       , subtitle = "The Two-Parties Legislature Effectiviness Score From Congress 93 to 117") +
+  geom_smooth(method = 'lm',se=F)
+
+time_graph  + theme(legend.position = "none")
+
+#Linear Regression
+
+#regression
+house$Seniority..number.of.terms.served.counting.current
+
+lm_house1 <- 
+lm(LES ~ dwnom1 
+     + dist_party_median + dist_floor_median + sub_sig_bills_sposnored  + X100.Dem..200.Rep..Other 
+     + Seniority..number.of.terms.served.counting.current + X1...majority.party.member, data=house)
+summary(lm_house1)
+
+lm_house_party <-
+  lm(median_les ~ average_dwnom1 
+        + abs_floor_dist + average_party_dist + average_bills, data=final_house)
+summary(lm_house_party)
+
+lm_house_party <-
+  lm(average_bills~ average_dwnom1 
+     + abs_floor_dist + average_party_dist, data=final_house)
+summary(lm_house_party)
+
+#stargaze to make regression look nice
+library("stargazer")
+#stargazer(house1,type = "text")
+
+lm_names <- c("First Dimension Score","Member Distance From Median DWNOM1 of Party",
+              "Member Distance From Median DWNOM1 of Floor", "Substantive/Signifcant Bills Sponsored",
+              "Democrate or Republican", "Senority", "Majority",
+              "Average Congress First Dimension Score", "Absolute Distance of Parties!",
+              "Average Congress Party Distance", "Average Congress Substantive/Signifcant Bills Sponsored")
+
+stargazer(lm_house1, lm_house_party, 
+          title="Regression Results", 
+          covariate.labels = lm_names,
+          align=TRUE, no.space=TRUE,
+          dep.var.labels = c("Individual Member LES", "Median Congress LES"),
+          out="lm_house.html")
+
+#fixed effects
+library("fixest")
+
+fixed_house <-
+  feols(LES ~ dwnom1 
+        + dist_party_median + dist_floor_median + subs_sponsored + X100.Dem..200.Rep..Other 
+        + Seniority..number.of.terms.served.counting.current + X1...majority.party.member
+        | Legislator.name..as.given.in.THOMAS + Congressional.district.number, data=house)
+summary(fixed_house)
+
+fixed_house1 <-
+  feols(LES ~ dwnom1 
+        + dist_party_median + dist_floor_median + subs_sponsored + X100.Dem..200.Rep..Other 
+        + Seniority..number.of.terms.served.counting.current + X1...majority.party.member
+        | Year.at.start.of.Congress, data=house)
+summary(fixed_house1)
+
+
+stargazer(fixed_house,
+          title="Regression Results", 
+          covariate.labels = lm_names,
+          align=TRUE, no.space=TRUE,
+          dep.var.labels = c("Individual Member LES", "Median Congress LES"),
+          out="fixed_house.html")
+
+#TEXT PART2
+library(quanteda)
+library(quanteda.textplots)
+library(stm)
+library(seededlda)
+library(tidyverse)
+library(tokenizers)
+library(quanteda)
+library(quanteda.textplots)
+library(stringr)
+
+#Set working directory
+setwd("C:/Classes/Poli_176")
+#Load data for speeches
+metadata <- read_csv("SOTU_WithText.csv")
+#Look at data
+metadata
+
+
+#Create a corpus of the state of the union speeches
+corpus_sotu <- corpus(metadata, text_field = "text")
+corpus_sotu
+
+#Create a document feature matrix (dfm)
+toks <- corpus_sotu  %>%
+  tokens()
+dfm <- dfm(toks)
+dfm
+
+#Some common pre-processing
+toks <- tokens(corpus_sotu, remove_punct = TRUE, remove_numbers=TRUE)
+toks <- tokens_select(toks,  stopwords("en"), selection = "remove")
+dfm <- dfm(toks)
+dfm
+
+#trim the dfm of rare words
+dfm_trimmed <- dfm_trim(dfm, min_docfreq = 0.04, docfreq_type = "prop")
+dfm_trimmed
+
+#Process the data to put it in STM format.  Textprocessor automatically does preprocessing
+temp<-textProcessor(documents=metadata$text,metadata=metadata)
+#prepDocuments removes words/docs that are now empty after preprocessing
+out <- prepDocuments(temp$documents, temp$vocab, temp$meta)
+
+#set Seed
+set.seed(12345)  
+
+#STM Topic model
+model.stm <- stm(out$documents, out$vocab, K = 30, prevalence = ~party,
+                 data = out$meta, max.em.its = 10) 
+
+#Find most probable words in each topic
+labelTopics(model.stm)
+
+#And most common topics
+plot(model.stm, n=5)
+
+#Get representative documents for each party
+findThoughts(model.stm, texts=out$meta$text, topics=15, n=2)
+
+findThoughts(model.stm, texts=out$meta$text, 
+             topics=15, where=party=="Republican", meta=metadata, n=2)
+
+findThoughts(model.stm, texts=out$meta$text, 
+             topics=15, where=party=="Democratic", meta=metadata, n=2)
+
+
+#Estimate relationship between parties and year
+model.stm.ee <- estimateEffect(1:30 ~ party + s(year), model.stm, meta = out$meta)
+
+plot(model.stm.ee, "year", method="continuous", topics=c(15))
+
+
+#Plot of topic 15 Democrat and Republican 
+plot.estimateEffect(model.stm.ee,  #Topic proportions in Rep
+                    covariate="year",
+                    model=model.stm.ee,
+                    topics=model.stm.ee$topics[15],
+                    method="continuous",
+                    xlab="Year",
+                    ylab="Expected Topic Proportions",
+                    moderator="party",
+                    moderator.value="Republican",
+                    main="Disscussion of American Identity",
+                    linecol="red",
+                    printlegend=F)
+plot.estimateEffect(model.stm.ee,  #Topic proportions in Dem
+                    covariate="year",
+                    model=model.stm.ee,
+                    topics=model.stm.ee$topics[15],
+                    method="continuous",
+                    xlab="Year",
+                    ylab="Expected Topic Proportions",
+                    moderator="party",
+                    moderator.value="Democratic",
+                    linecol="blue",
+                    printlegend=F,add=T)
+
